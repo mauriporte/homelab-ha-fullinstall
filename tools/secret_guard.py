@@ -70,10 +70,11 @@ def main():
 
 
 def self_test():
-    bad = ['"refresh_token": "0.AXkAabc123def456ghi789jkl"', "password: S3cr3tPassw0rd!xyz",
-           "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghijk123",
-           "-----BEGIN OPENSSH PRIVATE KEY-----", '"beeper_token": "bdapi_FAKEfakeFAKEfakeFAKEfake0123456789"',
-           "token = ghp_abcdefghijklmnopqrstuvwxyz0123456789"]
+    j = lambda *parts: "".join(parts)  # samples are assembled at run time, so no scanner sees a secret in this file
+    bad = [j('"refresh_', 'token": "0.AXkA', 'abc123def456ghi789jkl"'), j("pass", "word: S3cr3t", "Passw0rd!xyz"),
+           j("Authorization: Bearer ey", "JhbGciOiJIUzI1NiJ9.ey", "JzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghijk123"),
+           j("-----BEGIN OPENSSH PRI", "VATE KEY-----"), j('"beeper_token": "bd', 'api_FAKEfakeFAKE', 'fakeFAKEfake0123456789"'),
+           j("token = gh", "p_abcdefghijklmnop", "qrstuvwxyz0123456789")]
     good = ['password: "{{ password | default(\'\') }}"', "password: !secret router_password",
             '"password": CFG["password"]', "api_key: ENC[AES256_GCM,data:abc123def456ghi789]",
             "token = headers_get_token(req)", "secret: self.client_secret_value", "url = 'https://x.y/token=1'",
