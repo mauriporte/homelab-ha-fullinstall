@@ -1,0 +1,4 @@
+# Replace the placeholder with your age public key (age-keygen prints it; see docs/secrets.md).
+creation_rules:
+  - path_regex: secrets\.enc\.env$
+    age: age1REPLACE_WITH_YOUR_PUBLIC_KEY

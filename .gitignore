@@ -1,0 +1,7 @@
+# Never commit settings or decrypted secrets
+.env
+.secrets.env
+secrets.env
+*.dec.*
+keys.txt
+__pycache__/

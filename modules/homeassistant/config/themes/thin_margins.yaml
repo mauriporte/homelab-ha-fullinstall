@@ -1,0 +1,19 @@
+# Thin outer margins for "sections" dashboards whose sections span the full width (column_span = max_columns).
+# Pick it per view (Edit view → Theme). The default HA gap is much wider on big screens.
+Thin margins:
+  ha-view-sections-column-gap: 20px
+  ha-view-sections-column-min-width: 280px
+
+# Same, plus less space above the first card and black card borders (for tool/device pages).
+Thin margins (compact):
+  ha-view-sections-column-gap: 20px
+  ha-view-sections-column-min-width: 280px
+  ha-view-sections-row-gap: 6px
+  ha-card-border-color: "#000000"
+
+# No side margins at all: an embedded page (VNC, terminal, NAS UI) reaches the screen edges.
+No margins (embedded page):
+  ha-view-sections-column-gap: 0px
+  ha-view-sections-column-min-width: 280px
+  ha-view-sections-row-gap: 6px
+  ha-card-border-color: "#000000"

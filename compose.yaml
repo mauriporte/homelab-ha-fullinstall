@@ -1,0 +1,183 @@
+# homelab-ha-fullinstall: every app is behind a profile, so you start only what you want:
+#   docker compose --profile homeassistant --profile monitoring up -d      (or use ./install.sh)
+# All paths and ports come from .env (copy .env.example). Data lives under ${DATA_DIR}/<app>.
+name: homelab
+
+x-common: &common
+  restart: unless-stopped
+  environment: &env
+    TZ: ${TZ}
+    PUID: ${PUID}
+    PGID: ${PGID}
+
+services:
+  # ---------- Home Assistant ----------
+  homeassistant:
+    profiles: [homeassistant]
+    image: homeassistant/home-assistant:${HA_VERSION:-stable}
+    <<: *common
+    network_mode: host          # discovery (mDNS, SSDP, Bluetooth) needs the host network
+    privileged: true
+    volumes:
+      - ${DATA_DIR}/homeassistant:/config
+      - /run/dbus:/run/dbus:ro
+
+  # ---------- monitoring ----------
+  uptime-kuma:
+    profiles: [monitoring]
+    image: louislam/uptime-kuma:2
+    <<: *common
+    ports: ["${KUMA_PORT:-3001}:3001"]
+    volumes: ["${DATA_DIR}/uptime-kuma:/app/data"]
+
+  glances:                      # host CPU/RAM/disk/containers for HA's Glances integration
+    profiles: [monitoring]
+    image: nicolargo/glances:latest
+    <<: *common
+    pid: host
+    ports: ["${GLANCES_PORT:-61208}:61208"]
+    environment: {<<: *env, GLANCES_OPT: "-w"}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /etc/os-release:/etc/os-release:ro
+
+  portainer:                    # HA's Portainer integration gives a start/stop switch per container
+    profiles: [portainer]
+    image: portainer/portainer-ce:latest
+    <<: *common
+    ports: ["${PORTAINER_PORT:-9443}:9443"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${DATA_DIR}/portainer:/data
+
+  # ---------- media ----------
+  jellyfin:
+    profiles: [media]
+    image: linuxserver/jellyfin:latest
+    <<: *common
+    ports: ["${JELLYFIN_PORT:-8096}:8096"]
+    devices: ["/dev/dri:/dev/dri"]   # hardware transcoding (Intel/AMD); remove if the host has none
+    volumes:
+      - ${DATA_DIR}/jellyfin:/config
+      - ${MEDIA_DIR}:/data
+
+  jellyseerr:
+    profiles: [media]
+    image: fallenbagel/jellyseerr:latest
+    <<: *common
+    ports: ["${JELLYSEERR_PORT:-5055}:5055"]
+    volumes: ["${DATA_DIR}/jellyseerr:/app/config"]
+
+  sonarr:
+    profiles: [media]
+    image: linuxserver/sonarr:latest
+    <<: *common
+    ports: ["${SONARR_PORT:-8989}:8989"]
+    volumes: ["${DATA_DIR}/sonarr:/config", "${MEDIA_DIR}:/data"]
+
+  radarr:
+    profiles: [media]
+    image: linuxserver/radarr:latest
+    <<: *common
+    ports: ["${RADARR_PORT:-7878}:7878"]
+    volumes: ["${DATA_DIR}/radarr:/config", "${MEDIA_DIR}:/data"]
+
+  lidarr:
+    profiles: [media]
+    image: linuxserver/lidarr:latest
+    <<: *common
+    ports: ["${LIDARR_PORT:-8686}:8686"]
+    volumes: ["${DATA_DIR}/lidarr:/config", "${MEDIA_DIR}:/data"]
+
+  prowlarr:
+    profiles: [media]
+    image: lscr.io/linuxserver/prowlarr:latest
+    <<: *common
+    ports: ["${PROWLARR_PORT:-9696}:9696"]
+    volumes: ["${DATA_DIR}/prowlarr:/config"]
+
+  flaresolverr:                 # solves Cloudflare challenges for Prowlarr indexers
+    profiles: [media]
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    <<: *common
+    ports: ["${FLARESOLVERR_PORT:-8191}:8191"]
+
+  # ---------- downloads through a VPN ----------
+  # qBittorrent has no network of its own: it shares gluetun's, so it reaches the internet only through the
+  # tunnel (gluetun's firewall is the kill switch). Also bind qBittorrent to tun0 in its settings
+  # (Advanced → Network interface) so a compose edit can never make it fall back to your real IP.
+  gluetun:
+    profiles: [vpn-downloads]
+    image: qmcgaw/gluetun:v3
+    restart: unless-stopped
+    cap_add: [NET_ADMIN]
+    devices: ["/dev/net/tun:/dev/net/tun"]
+    environment:
+      TZ: ${TZ}
+      VPN_SERVICE_PROVIDER: ${VPN_PROVIDER}
+      VPN_TYPE: openvpn
+      OPENVPN_USER: ${VPN_USER}
+      OPENVPN_PASSWORD: ${VPN_PASSWORD}
+      SERVER_COUNTRIES: ${VPN_COUNTRY}
+      FREE_ONLY: ${VPN_FREE_ONLY:-off}   # ProtonVPN free accounts: "on" (paid servers answer AUTH_FAILED)
+    ports:
+      - "${QBIT_PORT:-8080}:8080"
+      - "6881:6881"
+      - "6881:6881/udp"
+    volumes: ["${DATA_DIR}/gluetun:/gluetun"]
+
+  qbittorrent:
+    profiles: [vpn-downloads]
+    image: linuxserver/qbittorrent:latest
+    <<: *common
+    network_mode: service:gluetun
+    depends_on:
+      gluetun: {condition: service_healthy}
+    environment: {<<: *env, WEBUI_PORT: "8080", TORRENTING_PORT: "6881"}
+    volumes: ["${DATA_DIR}/qbittorrent:/config", "${DOWNLOADS_DIR}:/downloads"]
+
+  # ---------- IPTV ----------
+  threadfin:                    # M3U/XMLTV proxy for Jellyfin Live TV (see docs/iptv.md and homelab-ha-toolkit/iptv)
+    profiles: [iptv]
+    image: fyb3roptik/threadfin:latest
+    <<: *common
+    ports: ["${THREADFIN_PORT:-34400}:34400"]
+    volumes: ["${DATA_DIR}/threadfin/conf:/home/threadfin/conf", "${DATA_DIR}/threadfin/tmp:/tmp/threadfin"]
+
+  tvheadend:                    # TV backend for Kodi (pvr.hts)
+    profiles: [iptv]
+    image: lscr.io/linuxserver/tvheadend:latest
+    <<: *common
+    ports: ["${TVH_PORT:-9981}:9981", "9982:9982"]
+    volumes: ["${DATA_DIR}/tvheadend:/config", "${DATA_DIR}/tvheadend-rec:/recordings"]
+
+  # ---------- mail ----------
+  stalwart:                     # SMTP + IMAP + webmail admin; open 25/465/587/993 on your router to this host
+    profiles: [mail]
+    image: stalwartlabs/stalwart:latest
+    restart: unless-stopped
+    ports:
+      - "25:25"
+      - "465:465"
+      - "587:587"
+      - "993:993"
+      - "${STALWART_WEB_PORT:-8090}:8080"
+    volumes: ["${DATA_DIR}/stalwart:/opt/stalwart"]
+
+  # ---------- remote access ----------
+  cloudflared:                  # Cloudflare Tunnel: public hostnames without opening ports (see docs/cloudflare.md)
+    profiles: [remote-access]
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    network_mode: host          # so tunnel routes can point at http://localhost:<port> and LAN IPs
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+
+  # ---------- sync ----------
+  syncthing:                    # e.g. an Obsidian vault shared between PC, phone and Home Assistant
+    profiles: [sync]
+    image: syncthing/syncthing:latest
+    <<: *common
+    ports: ["${SYNCTHING_PORT:-8384}:8384", "22000:22000", "22000:22000/udp", "21027:21027/udp"]
+    volumes: ["${DATA_DIR}/syncthing:/var/syncthing"]

@@ -1,0 +1,21 @@
+name: ci
+on: [push, pull_request]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - name: shellcheck
+        run: shellcheck install.sh modules/*/setup.sh
+      - name: compose file is valid (every profile)
+        run: |
+          cp .env.example .env
+          docker compose --env-file .env --profile '*' config --quiet
+      - name: python compiles
+        run: python3 -m py_compile modules/omv-frame-proxy/omv_frame_proxy.py
+      - name: no secrets committed
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

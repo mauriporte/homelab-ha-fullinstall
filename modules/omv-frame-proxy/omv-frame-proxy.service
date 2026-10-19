@@ -1,0 +1,13 @@
+[Unit]
+Description=OMV frame proxy: openmediavault web UI for a Home Assistant iframe (127.0.0.1:8097)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Environment=OMV_PROXY_CONFIG=/etc/omv-frame-proxy/omv.json
+ExecStart=/usr/bin/python3 /opt/omv_frame_proxy.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,8 @@
+# Example package: one file per feature keeps configuration.yaml short.
+# Collapsible dashboard groups use one input_boolean per group (heading tap toggles it; the cards below
+# have a visibility condition on it). Create them here or in Settings → Helpers.
+input_boolean:
+  show_server_summary:
+    name: Show server summary
+    icon: mdi:chevron-down
+    initial: true
