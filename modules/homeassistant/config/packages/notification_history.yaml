@@ -1,0 +1,20 @@
+# Notification history: Home Assistant has no "read" state, and dismissing a notification deletes it.
+# This copies every new persistent notification into a To-do list, so the bell's "Dismiss" works as
+# "mark as read" and the list keeps the history.
+# Setup: Settings → Devices & services → Add integration → Local To-do → name it "Notifications"
+# (entity todo.notifications), then restart or reload automations.
+automation:
+  - id: notification_history_copy
+    alias: "Notifications: keep a copy of each one"
+    mode: queued
+    max: 50
+    triggers:
+      - trigger: persistent_notification
+        update_type: [added]
+    actions:
+      - action: todo.add_item
+        target:
+          entity_id: todo.notifications
+        data:
+          item: "{{ trigger.notification.title or 'Notification' }}"
+          description: "{{ trigger.notification.message }}"

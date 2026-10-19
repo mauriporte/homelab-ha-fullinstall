@@ -2,11 +2,12 @@
 # homelab-ha-fullinstall installer (Debian/Ubuntu/Raspberry Pi OS; other Linux with Docker already installed).
 #   ./install.sh                         interactive: pick modules
 #   ./install.sh homeassistant media     non-interactive
-#   ./install.sh --list                  show modules
+#   ./install.sh --role media-server     a preset list of modules (roles/*.txt)
+#   ./install.sh --list                  show modules and roles
 set -euo pipefail
 cd "$(dirname "$0")"
 
-MODULES=(homeassistant monitoring portainer media vpn-downloads iptv mail remote-access sync)
+MODULES=(homeassistant monitoring portainer media vpn-downloads iptv mail remote-access sync photos ai youtube stremio dns rclone tailscale)
 declare -A INFO=(
   [homeassistant]="Home Assistant (host network) + starter config, themes and card-mod notes"
   [monitoring]="Uptime Kuma + Glances (host metrics for HA)"
@@ -17,11 +18,23 @@ declare -A INFO=(
   [mail]="Stalwart mail server (SMTP/IMAP)"
   [remote-access]="Cloudflare Tunnel (public hostnames without opening ports)"
   [sync]="Syncthing"
+  [photos]="Immich (photos and videos, with face/object search)"
+  [ai]="Ollama (local LLMs for HA Assist)"
+  [youtube]="Invidious (private YouTube front-end) + companion + database"
+  [stremio]="Stremio streaming server + self-hosted web app"
+  [dns]="Cloudflare DDNS + dnsmasq split DNS"
+  [rclone]="An rclone remote (e.g. Google Drive) served over DLNA to TVs"
+  [tailscale]="Tailscale node"
 )
 
 die() { echo "error: $*" >&2; exit 1; }
 
-list() { for m in "${MODULES[@]}"; do printf '  %-14s %s\n' "$m" "${INFO[$m]}"; done; }
+list() {
+  local m r
+  for m in "${MODULES[@]}"; do printf '  %-14s %s\n' "$m" "${INFO[$m]}"; done
+  echo "Roles (./install.sh --role NAME):"
+  for r in roles/*.txt; do printf '  %-14s %s\n' "$(basename "$r" .txt)" "$(grep -v -e '^#' -e '^$' "$r" | tr '\n' ' ')"; done
+}
 
 valid() { local m; for m in "${MODULES[@]}"; do [[ $m == "$1" ]] && return 0; done; return 1; }
 
@@ -47,8 +60,12 @@ fi
 ENV_ARGS=(--env-file .env)
 [[ -f .secrets.env ]] && ENV_ARGS+=(--env-file .secrets.env)
 
-# 3. Modules
+# 3. Modules (from the arguments, a role file, or a prompt)
 chosen=("$@")
+if [[ ${1:-} == --role ]]; then
+  [[ -f roles/${2:-}.txt ]] || die "unknown role '${2:-}' (./install.sh --list)"
+  mapfile -t chosen < <(grep -v -e '^#' -e '^$' "roles/$2.txt")
+fi
 if [[ ${#chosen[@]} -eq 0 ]]; then
   echo "Modules:"; list
   read -rp "Which ones (space-separated): " -a chosen

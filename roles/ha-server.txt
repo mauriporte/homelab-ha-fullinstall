@@ -1,0 +1,6 @@
+# Home Assistant hub: HA, monitoring, container switches, remote access
+homeassistant
+monitoring
+portainer
+remote-access
+sync

@@ -1,0 +1,15 @@
+# Everything on one big server
+homeassistant
+monitoring
+portainer
+media
+vpn-downloads
+iptv
+mail
+remote-access
+sync
+photos
+ai
+youtube
+stremio
+dns

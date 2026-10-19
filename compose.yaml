@@ -102,6 +102,13 @@ services:
     <<: *common
     ports: ["${FLARESOLVERR_PORT:-8191}:8191"]
 
+  jackett:                      # alternative/extra indexer proxy
+    profiles: [media]
+    image: linuxserver/jackett:latest
+    <<: *common
+    ports: ["${JACKETT_PORT:-9117}:9117"]
+    volumes: ["${DATA_DIR}/jackett:/config"]
+
   # ---------- downloads through a VPN ----------
   # qBittorrent has no network of its own: it shares gluetun's, so it reaches the internet only through the
   # tunnel (gluetun's firewall is the kill switch). Also bind qBittorrent to tun0 in its settings
@@ -181,3 +188,174 @@ services:
     <<: *common
     ports: ["${SYNCTHING_PORT:-8384}:8384", "22000:22000", "22000:22000/udp", "21027:21027/udp"]
     volumes: ["${DATA_DIR}/syncthing:/var/syncthing"]
+
+  # ---------- photos ----------
+  immich-server:
+    profiles: [photos]
+    image: ghcr.io/immich-app/immich-server:${IMMICH_VERSION:-release}
+    restart: unless-stopped
+    ports: ["${IMMICH_PORT:-2283}:2283"]
+    environment: &immich_env
+      TZ: ${TZ}
+      DB_HOSTNAME: immich-postgres
+      DB_USERNAME: immich
+      DB_DATABASE_NAME: immich
+      DB_PASSWORD: ${IMMICH_DB_PASSWORD}
+      REDIS_HOSTNAME: immich-redis
+    volumes: ["${PHOTOS_DIR}:/usr/src/app/upload", "/etc/localtime:/etc/localtime:ro"]
+    depends_on: [immich-redis, immich-postgres]
+
+  immich-machine-learning:
+    profiles: [photos]
+    image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-release}
+    restart: unless-stopped
+    environment: *immich_env
+    volumes: ["${DATA_DIR}/immich/model-cache:/cache"]
+
+  immich-redis:
+    profiles: [photos]
+    image: redis:6.2-alpine
+    restart: unless-stopped
+
+  immich-postgres:
+    profiles: [photos]
+    image: ghcr.io/immich-app/postgres:14-vectorchord0.3.0-pgvectors0.2.0
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: immich
+      POSTGRES_DB: immich
+      POSTGRES_PASSWORD: ${IMMICH_DB_PASSWORD}
+      POSTGRES_INITDB_ARGS: --data-checksums
+    volumes: ["${DATA_DIR}/immich/postgres:/var/lib/postgresql/data"]
+
+  # ---------- local AI ----------
+  ollama:                       # local LLMs (HA's Ollama integration / Assist). NVIDIA GPU: see docs/modules.md
+    profiles: [ai]
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    ports: ["${OLLAMA_PORT:-11434}:11434"]
+    volumes: ["${DATA_DIR}/ollama:/root/.ollama"]
+
+  # ---------- private YouTube front-end ----------
+  invidious:
+    profiles: [youtube]
+    image: quay.io/invidious/invidious:latest
+    restart: unless-stopped
+    ports: ["${INVIDIOUS_PORT:-3000}:3000"]
+    environment:
+      INVIDIOUS_CONFIG: |
+        db:
+          dbname: invidious
+          user: kemal
+          password: ${INVIDIOUS_DB_PASSWORD}
+          host: invidious-db
+          port: 5432
+        check_tables: true
+        invidious_companion:
+          - private_url: "http://invidious-companion:8282/companion"
+        invidious_companion_key: "${INVIDIOUS_COMPANION_KEY}"
+        hmac_key: "${INVIDIOUS_HMAC_KEY}"
+        domain: ${INVIDIOUS_DOMAIN}
+        https_only: ${INVIDIOUS_HTTPS_ONLY:-false}
+        external_port: ${INVIDIOUS_EXTERNAL_PORT:-}
+        registration_enabled: false
+        captcha_enabled: true
+        login_enabled: true
+    depends_on: [invidious-db, invidious-companion]
+
+  invidious-companion:          # fetches YouTube streams for Invidious
+    profiles: [youtube]
+    image: quay.io/invidious/invidious-companion:latest
+    restart: unless-stopped
+    environment:
+      SERVER_SECRET_KEY: ${INVIDIOUS_COMPANION_KEY}
+    volumes: ["${DATA_DIR}/invidious/companion-cache:/var/tmp/youtubei.js"]
+
+  invidious-db:
+    profiles: [youtube]
+    image: postgres:14
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: invidious
+      POSTGRES_USER: kemal
+      POSTGRES_PASSWORD: ${INVIDIOUS_DB_PASSWORD}
+    volumes: ["${DATA_DIR}/invidious/postgres:/var/lib/postgresql/data"]
+
+  # ---------- Stremio ----------
+  stremio-server:               # streaming server for Stremio clients
+    profiles: [stremio]
+    image: stremio/server:latest
+    restart: unless-stopped
+    network_mode: host          # port 11470
+    environment: {TZ: "${TZ}", NO_CORS: "1"}
+    volumes: ["${DATA_DIR}/stremio-server:/root/.stremio-server"]
+
+  stremio-web:                  # the Stremio web app, self-hosted (build from github.com/Stremio/stremio-web into ${DATA_DIR}/stremio-web)
+    profiles: [stremio]
+    image: nginx:alpine
+    restart: unless-stopped
+    ports: ["${STREMIO_WEB_PORT:-8095}:80"]
+    volumes: ["${DATA_DIR}/stremio-web:/usr/share/nginx/html:ro"]
+
+  # ---------- DNS ----------
+  cloudflare-ddns:              # keeps A/AAAA records pointing at your home IP (needed for mail; not for tunnels)
+    profiles: [dns]
+    image: favonia/cloudflare-ddns:latest
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      TZ: ${TZ}
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_DNS_TOKEN}
+      DOMAINS: ${DDNS_DOMAINS}
+      PROXIED: "false"
+
+  dnsmasq:                      # split DNS: your own hostnames resolve to LAN IPs (routers without NAT loopback)
+    profiles: [dns]
+    image: 4km3/dnsmasq:latest
+    restart: unless-stopped
+    network_mode: host          # port 53: free it first on hosts running systemd-resolved
+    command: ["-k", "--log-facility=-"]
+    volumes: ["${DATA_DIR}/dnsmasq/dnsmasq.conf:/etc/dnsmasq.conf:ro"]
+
+  # ---------- IPTV extras ----------
+  epg-grabber:                  # builds an XMLTV guide from iptv-org/epg sites (channels.xml lists what to grab)
+    profiles: [iptv]
+    image: ghcr.io/iptv-org/epg:master
+    restart: unless-stopped
+    ports: ["${EPG_PORT:-3002}:3000"]
+    environment: {TZ: "${TZ}", CRON_SCHEDULE: "0 4 * * *", DAYS: "3", MAX_CONNECTIONS: "5", RUN_AT_STARTUP: "true"}
+    volumes: ["${DATA_DIR}/epg/channels.xml:/epg/public/channels.xml"]
+
+  iptv-public:                  # serves your final playlist and guide (behind a secret path; see modules/iptv)
+    profiles: [iptv]
+    image: nginx:alpine
+    restart: unless-stopped
+    ports: ["${IPTV_PUBLIC_PORT:-8099}:8099"]
+    volumes:
+      - ${DATA_DIR}/iptv-public/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${DATA_DIR}/iptv-public/www:/www:ro
+
+  # ---------- Google Drive (or any rclone remote) on the TV ----------
+  rclone-dlna:                  # run `docker compose run --rm rclone-dlna config` once to add the remote
+    profiles: [rclone]
+    image: rclone/rclone:latest
+    restart: unless-stopped
+    network_mode: host
+    command: ["serve", "dlna", "${RCLONE_REMOTE:-gdrive:}", "--name", "${RCLONE_DLNA_NAME:-Cloud drive}", "--read-only",
+              "--vfs-cache-mode", "off", "--dir-cache-time", "1h", "--addr", ":${RCLONE_DLNA_PORT:-7879}"]
+    volumes: ["${DATA_DIR}/rclone:/config/rclone"]
+
+  # ---------- VPN mesh ----------
+  tailscale:
+    profiles: [tailscale]
+    image: tailscale/tailscale:latest
+    restart: unless-stopped
+    network_mode: host
+    cap_add: [NET_ADMIN, SYS_MODULE]
+    devices: ["/dev/net/tun:/dev/net/tun"]
+    environment:
+      TS_AUTHKEY: ${TAILSCALE_AUTHKEY}
+      TS_HOSTNAME: ${TAILSCALE_HOSTNAME:-homelab}
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_EXTRA_ARGS: ${TAILSCALE_EXTRA_ARGS:-}
+    volumes: ["${DATA_DIR}/tailscale:/var/lib/tailscale"]

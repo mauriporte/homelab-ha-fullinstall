@@ -1,0 +1,6 @@
+# Raspberry Pi helper: monitoring, remote access, mesh VPN
+monitoring
+portainer
+remote-access
+tailscale
+sync

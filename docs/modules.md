@@ -11,3 +11,11 @@
 | mail | Stalwart admin at `:8090` (initial password in `docker logs stalwart`). Open 25/465/587/993 on the router to this host; set MX, SPF, DKIM and DMARC records. If the router has no NAT loopback, add split DNS for the mail hostname. |
 | remote-access | Create the tunnel in Cloudflare Zero Trust, paste its token in your secrets, re-run. See `docs/cloudflare.md`. |
 | sync | Syncthing `:8384`; set a GUI password first. |
+| photos | Immich at `:2283`, create the admin. Photos go to `PHOTOS_DIR`. Set `IMMICH_DB_PASSWORD` in secrets **before** the first start (the database keeps the first password). |
+| ai | `docker exec ollama ollama pull qwen3:8b` (or any model), then HA's Ollama integration at `http://<host>:11434`. NVIDIA GPU: install the NVIDIA Container Toolkit and add `gpus: all` to the ollama service. |
+| youtube | Invidious at `:3000`. Generate `INVIDIOUS_HMAC_KEY` and a 16-character `INVIDIOUS_COMPANION_KEY` in secrets first; set `INVIDIOUS_DOMAIN` (and `INVIDIOUS_HTTPS_ONLY=true`, `INVIDIOUS_EXTERNAL_PORT=443` behind a tunnel). |
+| stremio | Put a stremio-web build in `${DATA_DIR}/stremio-web`; web app at `:8095`, streaming server on the host network (`:11470`). In the web app, set the streaming server URL to your server. |
+| dns | Edit `${DATA_DIR}/dnsmasq/dnsmasq.conf` (your hostnames → LAN IPs) and point your router's DHCP DNS at this host. DDNS needs a Cloudflare API token with DNS edit rights on the zone (`CLOUDFLARE_DNS_TOKEN`). |
+| rclone | `docker compose --env-file .env run --rm rclone-dlna config` to add the remote, then restart; TVs see it as a DLNA server. |
+| tailscale | Create an auth key in the Tailscale admin console (`TAILSCALE_AUTHKEY`). Advertise LAN routes with `TAILSCALE_EXTRA_ARGS=--advertise-routes=192.0.2.0/24` and approve them in the console. |
+| iptv (extras) | `epg-grabber` builds a guide from `${DATA_DIR}/epg/channels.xml`; `iptv-public` serves `${DATA_DIR}/iptv-public/www` at a random secret path printed on first install (keep it secret: anyone with the link can watch). |

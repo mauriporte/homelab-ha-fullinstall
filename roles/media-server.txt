@@ -1,0 +1,9 @@
+# Media box: library, downloads through a VPN, TV, extras
+media
+vpn-downloads
+iptv
+youtube
+stremio
+monitoring
+portainer
+remote-access
