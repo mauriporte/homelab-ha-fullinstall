@@ -19,3 +19,4 @@
 | rclone | `docker compose --env-file .env run --rm rclone-dlna config` to add the remote, then restart; TVs see it as a DLNA server. |
 | tailscale | Create an auth key in the Tailscale admin console (`TAILSCALE_AUTHKEY`). Advertise LAN routes with `TAILSCALE_EXTRA_ARGS=--advertise-routes=192.0.2.0/24` and approve them in the console. |
 | iptv (extras) | `epg-grabber` builds a guide from `${DATA_DIR}/epg/channels.xml`; `iptv-public` serves `${DATA_DIR}/iptv-public/www` at a random secret path printed on first install (keep it secret: anyone with the link can watch). |
+| notes-vault-patches | Optional, for the [Notes Vault](https://github.com/FezVrasta/ha-notes-vault) panel (HACS): pictures and HTML/PDF reports from your Obsidian vault, a readable folder tree on HA 2026.10, history folders newest first. Run `vault_files_server.py` where the vault lives, then `modules/notes-vault-patches/apply.sh` on the HA host. See its README. |

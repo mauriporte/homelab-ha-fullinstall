@@ -34,3 +34,15 @@ Values in `secrets.enc.env` override the same names in `.env`.
 
 Copy `~/.config/sops/age/keys.txt` from your password manager to the same path, clone the repo, run
 `./install.sh`. Nothing else is needed to get every secret back.
+
+## Never commit a plaintext secret
+
+`tools/secret_guard.py` is a pre-commit check that refuses a commit when a staged file holds something that looks like a
+secret (tokens, JWTs, private keys, `password: …`, API keys). sops-encrypted files (`*.enc*`) and binaries are skipped;
+real false positives go in `.secretguard-allow` (path globs). Install it once for every repository on a machine:
+
+    mkdir -p ~/.githooks && cp tools/secret_guard.py tools/pre-commit ~/.githooks/ && chmod +x ~/.githooks/pre-commit
+    git config --global core.hooksPath ~/.githooks
+    python ~/.githooks/secret_guard.py --self-test
+
+Private repositories need it too: a secret in git history leaks with every clone and backup.

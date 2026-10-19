@@ -1,0 +1,3 @@
+#!/bin/sh
+# Global pre-commit: block plaintext secrets in every repo (see secret_guard.py)
+exec python "$(dirname "$0")/secret_guard.py"
