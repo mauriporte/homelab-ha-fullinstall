@@ -30,7 +30,9 @@ with **sops + age**. Remote access goes through **Cloudflare Tunnel + Access**, 
 Run the installer on each machine with its role to spread the modules over several servers.
 
 Extras outside Docker: [`modules/omv-frame-proxy`](modules/omv-frame-proxy) shows the openmediavault UI
-inside a Home Assistant iframe, already logged in.
+inside a Home Assistant iframe, already logged in. [`modules/dashboard-cards`](modules/dashboard-cards) has two small dashboard
+modules: a card that shows a hass_ingress panel inside a dashboard (works in the mobile apps too), and your own hints
+in empty text fields.
 
 ## Install
 
