@@ -13,12 +13,15 @@ Local fixes for [Notes Vault](https://github.com/FezVrasta/ha-notes-vault) (HACS
 | `06_historial_newest_first.py` | Notes in any folder named `Historial` are listed newest first |
 | `07_historial_date_first.py` | ...and keep their date first (`2026-10-18 - Report`) |
 | `08_collapsible_reports.py` | `![[r.html\|abierto: Title]]` / `\|plegado: Title` embeds fold, open or folded |
+| `10_reel_player.py` | An Instagram reel link (`/reel/`, `/tv/`) gets "▶ Ver reel": plays the video inline (needs `yt-dlp` next to the server) |
+| `11_map_preview.py` | A Google Maps link becomes a "🗺 Ver mapa" button that shows Google's keyless map under it (short `maps.app.goo.gl` links go through the server) |
 
 ## Setup
 
 1. Run `vault_files_server.py` on the machine that holds the vault (see its docstring for the environment variables).
    It serves only the folders you list, behind a secret key, and publishes `sensor.vault_images` so the panel can build
-   the URLs. Open its port only to your LAN.
+   the URLs. Open its port only to your LAN. For reels (patch 10) install `yt-dlp` (`pip install yt-dlp`); public
+   reels only, without logging in to Instagram.
 2. For remote viewing, route `^/vault-img/` on your Home Assistant hostname to that machine (for example a Cloudflare
    Tunnel ingress rule with a `path`); same origin, so no extra login is needed in the browser.
 3. Apply the patches on the Home Assistant host (`HA_CONTAINER` defaults to `homeassistant`):
