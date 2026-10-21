@@ -1,0 +1,5 @@
+# your settings, and what was read from your account: never commit
+gmaps_zones.json
+*-state.json
+*-last-read.json
+venv/

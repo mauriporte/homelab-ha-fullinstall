@@ -1,0 +1,15 @@
+# systemd user service: keeps gmaps_zones.py --watch running (HA button + daily sync).
+# Install: see README.md. The token comes from ~/.config/gmaps-zones.env (HA_TOKEN=...), chmod 600.
+[Unit]
+Description=Google Maps saved places -> Home Assistant zones
+After=network-online.target
+
+[Service]
+WorkingDirectory=%h/homelab-ha-fullinstall/modules/google-maps-zones
+EnvironmentFile=%h/.config/gmaps-zones.env
+ExecStart=%h/homelab-ha-fullinstall/modules/google-maps-zones/venv/bin/python gmaps_zones.py --watch
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=default.target

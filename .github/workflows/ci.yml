@@ -18,7 +18,11 @@ jobs:
           cp .env.example .env
           docker compose --env-file .env --profile '*' config --quiet
       - name: python compiles
-        run: python3 -m py_compile modules/omv-frame-proxy/omv_frame_proxy.py
+        run: python3 -m py_compile modules/omv-frame-proxy/omv_frame_proxy.py modules/google-maps-zones/gmaps_zones.py
+      - name: google-maps-zones tests (no Google, no HA needed)
+        run: |
+          pip install requests websocket-client pytest
+          python3 -m pytest -q modules/google-maps-zones/test_gmaps_zones.py
       - name: no secrets committed
         uses: gitleaks/gitleaks-action@v2
         env:

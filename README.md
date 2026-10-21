@@ -32,7 +32,8 @@ Run the installer on each machine with its role to spread the modules over sever
 Extras outside Docker: [`modules/omv-frame-proxy`](modules/omv-frame-proxy) shows the openmediavault UI
 inside a Home Assistant iframe, already logged in. [`modules/dashboard-cards`](modules/dashboard-cards) has two small dashboard
 modules: a card that shows a hass_ingress panel inside a dashboard (works in the mobile apps too), and your own hints
-in empty text fields.
+in empty text fields. [`modules/google-maps-zones`](modules/google-maps-zones) keeps one HA zone per place saved in
+Google Maps (lists, starred, labelled), on a button in HA and daily; it runs on a desktop with Chrome or Edge.
 
 ## Install
 

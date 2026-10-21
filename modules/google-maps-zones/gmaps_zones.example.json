@@ -1,0 +1,15 @@
+{
+  "home_assistant": {"url": "http://homeassistant.local:8123", "token_env": "HA_TOKEN"},
+  "profile": "~/.gmaps-zones-profile",
+  "browser": {"channel": "msedge", "executable": ""},
+  "locale": "en-US",
+  "button": "input_button.sync_google_maps",
+  "daily_at": "04:45",
+  "sensor": "sensor.google_maps_places",
+  "radius": 30,
+  "skip_near_home_m": 100,
+  "default_icon": "mdi:map-marker",
+  "label_icon": "mdi:tag",
+  "icons": {"★": "mdi:star", "Favorite places": "mdi:heart", "Want to go": "mdi:flag", "Saved places": "mdi:bookmark"},
+  "exclude": []
+}

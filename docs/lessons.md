@@ -34,6 +34,19 @@
 - See `docs/cloudflare.md`. Typical blockers: `X-Frame-Options`, `SameSite=Strict` cookies, app-side
   "logged in" flags in `sessionStorage` (OMV), the Access login page refusing to be framed.
 
+## Google Maps saved places (modules/google-maps-zones)
+- No API: each saved list arrives in the page as one `maps/preview/entitylist/getlist` answer (with coordinates), but
+  the **starred** list makes no such request: each place has to be opened and its pin read from the address.
+- The pin is `!8m2!3d<lat>!4d<lng>`. Areas (a neighbourhood) carry other `!3d!4d` pairs, and the map centre (`@lat,lng`)
+  is hundreds of km off while zoomed out: one zone landed in the Atlantic before this was fixed.
+- Opening places by their position in the list breaks: going back re-renders it and only part of it is loaded until
+  scrolled. Open them by name.
+- A partial read looks exactly like "you unsaved these": only delete when every list loaded, and keep zones of places
+  that were seen but couldn't be located.
+- Google refuses sign-ins in automated browsers: sign in once in a normal window on the same profile, then automate.
+  Browsers keep running in the background after that window closes and lock the profile.
+- HA's map and Zones list hide passive zones, and HA drops an idle websocket during a minutes-long read (connect after).
+
 ## tvheadend / IPTV
 - tvheadend's HTTP client fails on some ffmpeg-buffered streams; an IPTV network fed by a `pipe://ffmpeg …`
   playlist works. Keep that playlist in sync with the mux list, or a restart can drop every mux and service.
